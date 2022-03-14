@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 import Reader as r
-import sys, os, shutil
+import sys
 import SLR
 import dotter
 import argparse
@@ -52,7 +53,7 @@ def buildParser(filename, outname: str):
 def main():
     aparse = argparse.ArgumentParser(description="Yukiparse, a parser builder")
     aparse.add_argument('file', metavar="GRAMMAR", help="format: python3 yukiparse.py GRAMMAR")
-    aparse.add_argument('-p', 
+    aparse.add_argument('-p', action='store_true',
                         help="create dot file representing the parser as a state machine")
     aparse.add_argument('-o', metavar="FILE", type=str,
                         help="name output file as FILE")
