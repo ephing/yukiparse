@@ -1,53 +1,9 @@
 #!/usr/bin/env python3
-import Reader as r
-import sys
-import SLR
+import sys, os
+from shutil import copyfile
 import dotter
 import argparse
-
-def recTablePrint(table, indent: int) -> str:
-    out = ""
-    for x in table:
-        out += ("\t" * indent) + "\"" + x.replace('\x19','\\x19').replace('\x18','\\x18') + "\": "
-        if isinstance(table[x], str):
-            out += "\"" + table[x].replace('\x19','\\x19').replace('\x18','\\x18') + "\","
-        elif isinstance(table[x], tuple):
-            out += str(table[x]) + ","
-        elif table[x] == None:
-            out += "None,"
-        else:
-            out += "{\n" + recTablePrint(table[x], indent + 1) + ("\t" * indent) + "},"
-        out += "\n"
-    return out
-
-def buildParser(filename, outname: str):
-    r.readGrammar(filename)
-    seed = SLR.Seed(r.STARTNONTERM,[],r.grammar.prods[r.STARTNONTERM][0])
-    SLR.State(seed)
-    t = SLR.table()
-    with open(outname,"w+") as file:
-        file.write("#!/usr/bin/env python3\n")
-        file.write("import parse as p\n")
-        for line in r.requires:
-            file.write(line + "\n")
-        file.write("\n")
-
-        # actual parser table
-        file.write("p.table = {\n")
-        file.write(recTablePrint(t, 1))
-        file.write("}\np.start = list(p.table.keys())[0]\n")
-
-        for a in r.idToAction:
-            file.write("def action" + a[1:] + "():\n")
-            for line in r.idToAction[a]:
-                file.write(line + "\n")
-            file.write("\n")
-
-        # semantic action mappings
-        file.write("p.actions = {\n")
-        for a in r.prodToAction:
-            file.write("\t\"" + a + "\": action" + r.prodToAction[a][1:] + ",\n")
-        file.write("}\n")
+from build import *
 
 # Entrypoint
 def main():
@@ -57,6 +13,8 @@ def main():
                         help="create dot file representing the parser as a state machine")
     aparse.add_argument('-o', metavar="FILE", type=str,
                         help="name output file as FILE")
+    aparse.add_argument('-l', metavar="LANGUAGE", type=str,
+                        help="specify an output language\nCurrently supports:\n\tPython\n\tHaskell\n\tGo")
     args = aparse.parse_args()
 
     if len(sys.argv) < 2:
@@ -66,8 +24,28 @@ def main():
     file = args.file
     outname = "parser.py" if args.o is None else args.o
     dot = args.p
+    lang = 'python' if args.l is None else args.l.lower()
+    dir = "." if outname.rfind("/") == -1 else outname[:outname.rfind("/")]
+    if dir != "." and not os.path.exists(dir):
+        os.mkdir(dir)
 
-    buildParser(file, outname)
+    if lang not in ['python', 'haskell', 'go']:
+        aparse.print_help()
+        exit(1)
+    elif lang == 'python':
+        with open(dir + "/parse.py", "w") as outfile:
+            if dir == '.': outfile.write("import lexer as lexer")
+            else: outfile.write("import " + dir + ".lexer as lexer")
+            with open("parsers/parse.py", "r") as parsepy:
+                for line in parsepy.readlines():
+                    outfile.write(line)
+                
+    elif lang == 'haskell':
+        copyfile("parsers/parse.hs", dir + "/parse.hs")
+    elif lang == 'go':
+        pass
+
+    buildParser(file, outname, lang)
     if dot:
         dotter.makedot(outname + ".dot")
 

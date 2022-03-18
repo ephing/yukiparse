@@ -1,4 +1,3 @@
-import lexer as lexer
 
 STARTNONTERM = "\31"
 EOF = "\30"
