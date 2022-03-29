@@ -34,18 +34,21 @@ def main():
         exit(1)
     elif lang == 'python':
         with open(dir + "/parse.py", "w") as outfile:
-            if dir == '.': outfile.write("import lexer as lexer")
-            else: outfile.write("import " + dir + ".lexer as lexer")
+            outfile.write("import lexer as lexer")
             with open("parsers/parse.py", "r") as parsepy:
-                for line in parsepy.readlines():
-                    outfile.write(line)
-                
+                outfile.write(''.join(parsepy.readlines()))
     elif lang == 'haskell':
         copyfile("parsers/parse.hs", dir + "/parse.hs")
     elif lang == 'go':
-        pass
+        with open(dir + "/parse.go", "w") as outfile:
+            if dir == ".":
+                outfile.write("package main")
+            else:
+                outfile.write("package " + dir[dir.rfind("/") + 1:])
+            with open("parsers/parse.go", "r") as parsego:
+                outfile.write(''.join(parsego.readlines()[1:]))
 
-    buildParser(file, outname, lang)
+    buildParser(file, outname, lang, dir)
     if dot:
         dotter.makedot(outname + ".dot")
 

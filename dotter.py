@@ -19,5 +19,5 @@ def makedot(filename):
 def getStuff(s: SLR.State):
     out = ""
     for i in s.items:
-        out += i.asStr().replace(STARTNONTERM, "S'").replace(EOF,"") + "\\n"
+        out += str(i).replace(STARTNONTERM, "S'").replace(EOF,"") + "\\n"
     return out

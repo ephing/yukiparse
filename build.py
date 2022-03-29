@@ -1,17 +1,19 @@
 import SLR
 import Reader as r
+import dotter
 
-def buildParser(filename, outname: str, lang: str):
+def buildParser(filename, outname: str, lang: str, dir: str):
     r.readGrammar(filename)
     seed = SLR.Seed(r.STARTNONTERM,[],r.grammar.prods[r.STARTNONTERM][0])
     SLR.State(seed)
+    dotter.makedot(outname + ".dot")
     t = SLR.table()
     if lang.lower() == 'python':
         buildPython(outname, t)
     elif lang.lower() == 'haskell':
         buildHaskell(outname, t)
     elif lang.lower() == 'go':
-        buildGo()
+        buildGo(outname, t, dir[dir.rfind("/") + 1:])
 
 def recTablePrintPython(table, indent: int) -> str:
     out = ""
@@ -29,9 +31,13 @@ def recTablePrintPython(table, indent: int) -> str:
     return out
 
 def buildPython(filename, table):
+    dir = "." if filename.rfind("/") == -1 else filename[:filename.rfind("/")]
     with open(filename,"w+") as file:
         file.write("#!/usr/bin/env python3\n")
-        file.write("import parse as p\n")
+        if dir == ".":
+            file.write("import parse as p\n")
+        else:
+            file.write("import " + dir + ".parse as p\n")
         for line in r.requires:
             file.write(line + "\n")
         file.write("\n")
@@ -85,5 +91,52 @@ def buildHaskell(filename, table):
         file.write("import Parser\nimport Control.Monad\n\n")
         file.write(tablePrintHaskell(table))
 
-def buildGo():
-    pass
+def tablePrintGo(table) -> str:
+    out = ""
+    for state in table:
+        s = state.replace("\x19", "\\x19").replace("\x18", "\\x18")
+        out += "\t\"" + s + "\": {\n"
+        for token in table[state]:
+            t = token.replace("\x19", "\\x19").replace("\x18", "\\x18")
+            if table[state][token] == "accept":
+                out += "\t\t\"" + t + "\": {acType: \"Accept\"},\n"
+            elif isinstance(table[state][token], str):
+                next = table[state][token].replace("\x19", "\\x19").replace("\x18", "\\x18")
+                out += "\t\t\"" + t + "\": {acType: \"Shift\", next: \"" + next + "\"},\n"
+            elif isinstance(table[state][token], tuple):
+                next = table[state][token][0].replace("\x19", "\\x19").replace("\x18", "\\x18")
+                r = table[state][token][1]
+                out += "\t\t\"" + t + "\": {acType: \"Reduce\", next: \"" + next + "\", reduceBy: " + str(r) + "},\n"
+        out += "\t},\n"
+    return out
+
+def buildGo(filename, table, pname):
+    with open(filename,"w+") as file:
+        if pname == ".":
+            file.write("package main\n\n")
+        else:
+            file.write("package " + pname + "\n\n")
+
+        for line in r.requires:
+            file.write(line + "\n")
+        file.write("\n")
+
+        file.write("var table = map[string]map[string]Action {\n")
+        file.write(tablePrintGo(table))
+        file.write("}\n\n")
+        file.write("var start string = \"" + list(table.keys())[0].replace('\x18', '\\x18').replace('\x19', '\\x19') + "\"\n\n")
+        
+
+        for a in r.idToAction:
+            file.write("func action" + a[1:] + "(currentToken []rune, semstack []SemanticType) []SemanticType{\n")
+            for line in r.idToAction[a]:
+                file.write(line + "\n")
+            file.write("}\n\n")
+
+        # semantic action mappings
+        file.write("var actions = map[string]func(l []rune, s []SemanticType) []SemanticType{\n")
+        for a in r.prodToAction:
+            file.write("\t\"" + a + "\": func(l []rune, s []SemanticType) []SemanticType { action" + r.prodToAction[a][1:] + "(l, s) },\n")
+        file.write("}\n\n")
+
+        file.write("var " + pname[0].upper() + pname[1:] + "Parser = Parser{table, start, actions}")
