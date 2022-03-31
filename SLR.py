@@ -42,6 +42,7 @@ class State:
     #add item to list and update all values
     def merge(self,s: Seed):
         self.items += [s]
+        newSeeds = [s]
         temp = []
         #gotta run until saturation or something
         while self.items != temp:
@@ -56,8 +57,10 @@ class State:
                                 break
                         else:
                             self.items += [s]
-        
-        if s.getNext() != None: self.getNext(s.getNext())
+                            newSeeds += [s]
+        for seed in newSeeds:
+            if seed.getNext() != None:
+                self.getNext(seed.getNext())
 
     def getNext(self,token: str):
         global states
