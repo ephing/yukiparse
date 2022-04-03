@@ -5,6 +5,7 @@ start = ""
 semstack = []
 table = {}
 actions = {}
+errorSets = {}
 currentToken = None
 
 class Parser:
@@ -17,7 +18,7 @@ class Parser:
         currentToken = None
 
     def parse(self):
-        global semstack
+        global semstack, errorSets
         while len(self.stack) != 0:
             next = table[self.stack[0]][self.tkstream[self.lookahead]['symbol']]
             #accept
@@ -28,7 +29,15 @@ class Parser:
                     exit(1)
             #failure
             elif next == None:
-                print("Parse error: cringe token " + str(self.tkstream[self.lookahead]))
+                f = None
+                state = list(filter(lambda x: x != '', self.stack[0].split(" ")))
+                if state[-1] == "●":
+                    f = str(errorSets["f" + state[0]])
+                else:
+                    f = str(errorSets[state[state.index("●") + 1]])
+                print("Parse error " + str(self.tkstream[self.lookahead]['pos']) \
+                    + ": Found " + str(self.tkstream[self.lookahead]['symbol']).replace('\x18', '\\x18') \
+                    + ":" + str(self.tkstream[self.lookahead]['lexeme']) + ", Expected " + f)
                 exit(1)
             #shift/goto
             elif isinstance(next,str):

@@ -59,6 +59,15 @@ def buildPython(filename, table):
             file.write("\t\"" + a + "\": action" + r.prodToAction[a][1:] + ",\n")
         file.write("}\n")
 
+        #follow sets for error output
+        file.write("p.errorSets = {\n")
+        for t in r.grammar.nonterms:
+            file.write("\t\'f" + t.replace('\x19','\\x19') + "\': " + str(r.grammar.followSets[t]) + ",\n")
+            file.write("\t\'" + t.replace('\x19','\\x19') + "\': " + str(r.grammar.firstSets[t]) + ",\n")
+        for t in r.grammar.terms:
+            file.write("\t\'" + t.replace('\x18','\\x18') + "\': " + str(r.grammar.firstSets[t]) + ",\n")
+        file.write("}\n")
+
 def tablePrintHaskell(table) -> str:
     out = ""
     stateToHash = dict(map(lambda x: (x, str(abs(hash(x)))), table.keys()))
