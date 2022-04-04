@@ -11,11 +11,11 @@ class Grammar:
         self.nonterms = nonterms + [STARTNONTERM]
         self.prods = prods
         self.prods.update({STARTNONTERM: [[self.nonterms[0], EOF]]})
-        self.firstSets = {'':[None]}
-        self.followSets = {EOF: [None], STARTNONTERM: [None]}
+        self.firstSets = {'':{None}}
+        self.followSets = {EOF: {None}, STARTNONTERM: {None}}
 
         #term first sets
-        for i in self.terms: self.firstSets.update({i: [i]})
+        for i in self.terms: self.firstSets.update({i: {i}})
         #nonterm first sets
         for n in self.nonterms: self.FIRST_sym(n)
         #symbol string first sets
@@ -33,14 +33,14 @@ class Grammar:
         print("Term:",self.terms,"\nNonterm:",self.nonterms,"\nProds",self.prods)
 
     # get FIRST set of a single symbol
-    def FIRST_sym(self, symbol: str) -> dict:
+    def FIRST_sym(self, symbol: str) -> set:
         if symbol in self.firstSets: return self.firstSets[symbol]
-        self.firstSets.update({ symbol: [] })
+        self.firstSets.update({ symbol: set({}) })
         
         for p in self.prods[symbol]:
             # production is epsilon, add epsilon to FIRST set
             if p == [] and None not in self.firstSets[symbol]:
-                self.firstSets[symbol] += [None]
+                self.firstSets[symbol].add(None)
             else:
                 # check symbols in production sequentially
                 for i in p:
@@ -52,23 +52,23 @@ class Grammar:
                     if None not in recursionBabyWOOOOO or p.index(i) == len(p) - 1:
                         for x in recursionBabyWOOOOO:
                             if x not in self.firstSets[symbol]:
-                                self.firstSets[symbol] += [x]
+                                self.firstSets[symbol].add(x)
                         break
                     # if we get here, i was nullable, add FIRST(i) excluding epsilon and continue through symbol string
                     for x in recursionBabyWOOOOO:
                         if x != None and x not in self.firstSets[symbol]:
-                            self.firstSets[symbol] += [x]
+                            self.firstSets[symbol].add(x)
         return self.firstSets[symbol]
 
     # get FIRST set of a symbol string
     def FIRST_prod(self, prod: list) -> None:
         prodStr = ' '.join(prod)
         if prodStr in self.firstSets: return
-        self.firstSets.update({prodStr: []})
+        self.firstSets.update({prodStr: set({})})
         for s in prod:
             # add FIRST(s)
             for x in self.firstSets[s]:
-                if x not in self.firstSets[prodStr]: self.firstSets[prodStr] += [x]
+                if x not in self.firstSets[prodStr]: self.firstSets[prodStr].add(x)
             # if s is nullable and there are still more symbols in the production
             # then remove epsilon from the current first set and add first set of the production excluding the first symbol
             #
@@ -80,36 +80,36 @@ class Grammar:
                 self.FIRST_prod(prod[1:])
                 for x in self.firstSets[' '.join(prod[1:])]:
                     if x not in self.firstSets[prodStr]:
-                        self.firstSets[prodStr] += [x]
+                        self.firstSets[prodStr].add(x)
             else: break
 
     # get FOLLOW set of a single symbol
-    def FOLLOW(self,symbol: str, prev = []) -> dict:
-        if symbol not in self.followSets: self.followSets.update({symbol: []})
+    def FOLLOW(self,symbol: str, prev: set = set({})) -> set:
+        if symbol not in self.followSets: self.followSets.update({symbol: set({})})
 
         for n in self.prods:
             for p in self.prods[n]:
-                if symbol in p:
-                    # get location of symbol in this production
-                    index = p.index(symbol)
+                if symbol not in p: continue
+                for index in range(len(p)):
+                    if p[index] != symbol: continue
                     followZ = None
                     # Beta is empty, calculate FOLLOW(Z)
                     if index == len(p) - 1 and n not in prev:
-                        followZ = self.FOLLOW(n, prev + [n])
+                        followZ = self.FOLLOW(n, prev.union({n}))
                     else:
                         # get FIRST(Beta) and add it to FOLLOW(symbol)
                         self.FIRST_prod(p[index+1:])
                         bStr = ' '.join(p[index+1:])
                         for f in self.firstSets[bStr]:
                             if f != None and f not in self.followSets[symbol]: 
-                                self.followSets[symbol] += [f]
+                                self.followSets[symbol].add(f)
                         # Beta is nullable, calculate FOLLOW(Z)
                         if None in self.firstSets[bStr] and n not in prev: 
-                            followZ = self.FOLLOW(n, prev + [n])
+                            followZ = self.FOLLOW(n, prev.union({n}))
                     # add FOLLOW(Z) if it was calculated
                     if followZ != None:
                         for z in followZ:
-                            if z not in self.followSets[symbol]: self.followSets[symbol] += [z]
+                            if z not in self.followSets[symbol]: self.followSets[symbol].add(z)
         return self.followSets[symbol]
 
 grammar = None
